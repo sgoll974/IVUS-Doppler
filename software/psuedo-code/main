@@ -1,0 +1,83 @@
+/* The purpose of this file is
+ * to loop through all the tasks the display module is responsible for.
+ * These are
+ * to draw the IVUS to the display
+ * and to overlay text of the cardiac output.
+ * */
+
+main(){ /* This is the entry point. */
+	event; /* This is the event struct for GUI events,
+		  provided by the window library. */
+	gui_state; /* This is the struct which holds the internal state for the GUI,
+		      provided by the GUI library. */
+
+	init(); /* This initializes the system. */
+
+	while(true){ /* This is the main loop,
+			it shall not finish unless power off is requested
+			or the system gives an error. */
+		frame; /* This is the struct which holds the video data for display of the IVUS probe,
+			  may be raw or compressed depending on the bandwidth of the connection
+			  between the FPGA and SBC. */
+		float velocity; /* This is the fluid velocity of the blood. */
+		float area; /* This is the cross sectional area of the blood vessel. */
+		float cardiac_output; /* This is the cardiac output,
+					 the target to be calculated. */
+		packet; /* This is a packet struct for serialization to the file system. */
+
+		event = poll_events(); /* Get new events via polling the window system. */
+		if(event.type == EVENT_QUIT) /* Exit main loop if power off is requested. */
+			break;
+		give_gui_event(event); /* Forward GUI events to GUI system. */
+
+		frame = (gui_state.mode == MODE_LIVE) ? // Fill frame struct with either
+			recieve_video_frame() : 	// a video frame from the FPGA
+			recieve_video_packet();		// or a video frame from the file system.
+		if(frame.needs_processing) /* Check if the frame is compressed and needs to be uncompressed. */
+			frame = process_video_frame(frame);
+		area = (gui_state.mode == MODE_LIVE) ?		// Set area to either
+			find_cross_sectional_area(frame) :	// the calculated area from the video frame
+			recieve_area_packet();			// or the precalculated area from the file system.
+		
+		velocity = (gui_state.mode == MODE_LIVE) ?	// Set velocity to either
+			recieve_fluid_velocity() :		// the velocity from the FPGA
+			recieve_fluid_velocity_packet();	// or the velocity from the file system.
+
+		cardiac_output = area * velocity; /* Calculate cardiac output with the area and velocity. */
+
+		display_frame(frame); /* Draw the video frame to the display. */
+		gui_state = update_gui(gui_state); /* Update the GUI state based on the GUI events given above. */
+
+		packet = make_packet(frame, area, velocity); /* Serialize the video frame, area, and velocity. */
+		save_packet(packet); /* Write the serialized packet to the file system. */
+	}
+
+	deinit(); /* Deinitialize all subsystems. */
+	poweroff(); /* Send power off command to the SBC. */
+}
+
+init(){
+	init_io(); /* Ensure connectivity with the FPGA. */
+	init_display(); /* Turn on and initialize the display. */
+	create_window(); /* Create the main window on the display. */
+}
+
+update_gui(gui_state){ /* The GUI is used in immediate mode,
+			  meaning both
+			  that the display is redraw every frame
+			  and that the code which draws GUI elements
+			  is also used for control flow that those elements control. */
+	switch(gui_state.mode){
+		case MODE_HISTORIC:
+			if(!gui_state.is_time_set) /* If the historic time is not yet set, ask the user for it. */
+				gui_state = gui_ask_time(gui_state);
+		break;
+	}
+	display_gui(gui_state); /* Further draw all buttons and text,
+				   use buttons to control the control flow statements
+				   that the button operate. */
+}
+
+deinit(){
+	destroy_window(); /* Tell the window system to close the window and free its resources. */
+}
