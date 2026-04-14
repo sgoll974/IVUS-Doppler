@@ -1,19 +1,21 @@
 /*
  * Module: ivus_doppler_frontend_pl
- * Description: PL-side logic for the 64-element Visions PV .035 and ARJO 8MHz DOPPLER
+ * Description: PL-side logic for the 64-element Visions PV .035 and Parks Medical skinny pencil probe DOPPLER
  * Handles nanosecond timing, DSP, and reverse-engineering diagnostic routing.
  * Target: Xilinx Zynq-7010 (STEMlab 125-14)
  * Course: UTSA ECE 4812 (Design 1)
  * Team 1 - Doppler Dynamics
  */
 
-module ivus_frontend_pl (
+module ivus_frontend_pl #(
+    parameter PROBE_FREQ_MHZ = 8 // Configurable: Parks Medical skinny pencil probe frequency (MHz)
+) (
     input  wire        clk_125mhz,      
     input  wire        rst_n,           
 
     // --- AFE & Catheter Interfaces ---
     input  wire [13:0] adc_ch1_in,      // Volcano IVUS (B-Mode)
-    input  wire [13:0] adc_ch2_in,      // ADDED: Arjo 8MHz Doppler Probe
+    input  wire [13:0] adc_ch2_in,      // ADDED: Parks Medical Doppler Probe
     output wire        tx_pulser_trig,  
     output wire        rx_enable,       
     
@@ -104,7 +106,7 @@ module ivus_frontend_pl (
                     end
                 end
                 STATE_DOPPLER: begin
-                    // Interleaved Mode: Fire Arjo Probe and mix echoes 
+                    // Interleaved Mode: Fire Parks Medical skinny pencil probe and mix echoes 
                     // isolated from the IVUS transmit pulse.
                     if (sample_counter == DOPPLER_MAX_DEPTH) begin
                         state <= STATE_WAIT_PRF;
@@ -128,21 +130,21 @@ module ivus_frontend_pl (
     wire        envelope_valid;
     // [Instantiate B-Mode DDC, CIC, and CORDIC IPs here]
 
-    // --- PATH B: ARJO 8MHz DOPPLER (ADC CH 2) ---
-    // The Arjo probe needs I/Q demodulation to determine directional blood flow.
-    wire signed [15:0] nco_8mhz_cos;
-    wire signed [15:0] nco_8mhz_sin;
+    // --- PATH B: PARKS MEDICAL DOPPLER (ADC CH 2) ---
+    // The Parks Medical probe needs I/Q demodulation to determine directional blood flow.
+    wire signed [15:0] nco_cos;
+    wire signed [15:0] nco_sin;
     
-    // Placeholder: Xilinx DDS Compiler tuned to 8.0 MHz
-    // dds_compiler_8mhz nco_inst (...);
+    // Placeholder: Xilinx DDS Compiler tuned to PROBE_FREQ_MHZ
+    // dds_compiler_freq_mhz nco_inst (...);
 
     reg signed [29:0] mixer_i, mixer_q;
     always @(posedge clk_125mhz) begin
-        // MODIFIED: Interleaved mixing. Only process Arjo data during 
+        // MODIFIED: Interleaved mixing. Only process Parks Medical data during 
         // the isolated Doppler window to prevent IVUS cross-talk.
         if (state == STATE_DOPPLER) begin
-            mixer_i <= $signed(adc_ch2_in) * nco_8mhz_cos;
-            mixer_q <= $signed(adc_ch2_in) * nco_8mhz_sin;
+            mixer_i <= $signed(adc_ch2_in) * nco_cos;
+            mixer_q <= $signed(adc_ch2_in) * nco_sin;
         end else begin
             mixer_i <= 0;
             mixer_q <= 0;
@@ -164,7 +166,7 @@ module ivus_frontend_pl (
     assign m_axis_tvalid = envelope_valid;
     assign m_axis_tlast  = (sample_counter == MAX_DEPTH); 
 
-    // AXI Stream 2: Arjo Doppler
+    // AXI Stream 2: Parks Medical Doppler
     assign m_axis_doppler_tdata  = {doppler_i_decimated, doppler_q_decimated};
     assign m_axis_doppler_tvalid = doppler_valid;
     // Doppler is a continuous stream, but we assert tlast periodically to chunk DMA transfers
