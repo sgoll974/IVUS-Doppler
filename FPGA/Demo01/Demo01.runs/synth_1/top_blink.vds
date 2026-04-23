@@ -1,0 +1,30 @@
+#-----------------------------------------------------------
+# Vivado v2024.1 (64-bit)
+# SW Build 5076996 on Wed May 22 18:37:14 MDT 2024
+# IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
+# SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
+# Start of session at: Thu Apr 16 14:54:42 2026
+# Process ID: 9584
+# Current directory: C:/Users/natha/OneDrive/Code/DopplerDynamics/IVUS-Doppler/FPGA/Demo01/Demo01.runs/synth_1
+# Command line: vivado.exe -log top_blink.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source top_blink.tcl
+# Log file: C:/Users/natha/OneDrive/Code/DopplerDynamics/IVUS-Doppler/FPGA/Demo01/Demo01.runs/synth_1/top_blink.vds
+# Journal file: C:/Users/natha/OneDrive/Code/DopplerDynamics/IVUS-Doppler/FPGA/Demo01/Demo01.runs/synth_1\vivado.jou
+# Running On        :Daedalus
+# Platform          :Windows Server 2016 or Windows 10
+# Operating System  :26200
+# Processor Detail  :13th Gen Intel(R) Core(TM) i9-13900HX
+# CPU Frequency     :2419 MHz
+# CPU Physical cores:24
+# CPU Logical cores :32
+# Host memory       :68393 MB
+# Swap memory       :4294 MB
+# Total Virtual     :72688 MB
+# Available Virtual :28853 MB
+#-----------------------------------------------------------
+source top_blink.tcl -notrace
+create_project: Time (s): cpu = 00:00:06 ; elapsed = 00:00:09 . Memory (MB): peak = 556.488 ; gain = 201.859
+Command: synth_design -top top_blink -part xc7z010clg400-1
+0 Infos, 0 Warnings, 0 Critical Warnings and 1 Errors encountered.
+synth_design failed
+ERROR: [Common 17-1293] The path 'C:/Users/natha/OneDrive/Code/DopplerDynamics/IVUS-Doppler/FPGA/Demo01/Demo01.cache/wt' already exists, is a directory, but is not writable.
+INFO: [Common 17-206] Exiting Vivado at Thu Apr 16 14:54:58 2026...

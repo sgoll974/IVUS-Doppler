@@ -1,0 +1,21 @@
+
+*** Running vivado
+    with args -log top_blink.vds -m64 -product Vivado -mode batch -messageDb vivado.pb -notrace -source top_blink.tcl
+
+
+
+****** Vivado v2024.1 (64-bit)
+  **** SW Build 5076996 on Wed May 22 18:37:14 MDT 2024
+  **** IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
+  **** SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
+  **** Start of session at: Thu Apr 16 14:54:42 2026
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+
+source top_blink.tcl -notrace
+create_project: Time (s): cpu = 00:00:06 ; elapsed = 00:00:09 . Memory (MB): peak = 556.488 ; gain = 201.859
+Command: synth_design -top top_blink -part xc7z010clg400-1
+0 Infos, 0 Warnings, 0 Critical Warnings and 1 Errors encountered.
+synth_design failed
+ERROR: [Common 17-1293] The path 'C:/Users/natha/OneDrive/Code/DopplerDynamics/IVUS-Doppler/FPGA/Demo01/Demo01.cache/wt' already exists, is a directory, but is not writable.
+INFO: [Common 17-206] Exiting Vivado at Thu Apr 16 14:54:58 2026...

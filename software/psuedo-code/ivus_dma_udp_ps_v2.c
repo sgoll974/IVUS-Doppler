@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define RPI_IP "192.168.1.100"
+#define RPI_IP "[IP_ADDRESS]"
 #define RPI_PORT 8080
 
 // --- Engineering Specifications ---
