@@ -1,0 +1,156 @@
+DOPPLER DYNAMICS IVUS DEMO — CODE AND VARIABLE REFERENCE
+========================================================
+
+Purpose
+-------
+This package plays one recorded IVUS acquisition through the real Ethernet
+path between the Red Pitaya ARM and Raspberry Pi. It is a dataset-playback and
+network-integration demonstration. It is not live IVUS acquisition, FPGA DMA,
+or Doppler measurement.
+
+DATA FLOW
+---------
+15_10_50_19.hdf5
+  -> tools/export_ivus_demo.py creates 15_10_50_19_demo.ddf
+  -> red_pitaya/dd_udp_sender.c packetizes each frame
+  -> UDP/IP/Ethernet through the physical switch
+  -> gui/gui.c reassembles, verifies, and displays each frame on the Pi
+
+WHY THE UDP PAYLOAD IS 1400 BYTES
+---------------------------------
+Standard Ethernet normally permits a 1500-byte IP packet. IPv4 and UDP use
+20 and 8 bytes, leaving 1472 bytes for the UDP payload. Our 40-byte DDSP
+application header plus 1400 bytes of image data produces a 1440-byte UDP
+payload, a 1448-byte UDP datagram, and a 1468-byte IP packet. This stays below
+the 1500-byte MTU without IP fragmentation.
+
+protocol.h
+----------
+DD_PACKET_MAGIC: 32-bit identifier for DDSP packets (ASCII "DDSP").
+DD_PROTOCOL_VERSION: packet format version, currently 1.
+DD_STREAM_IVUS_BMODE8: stream type for an 8-bit grayscale IVUS B-mode image.
+DD_UDP_PORT: receiver port, 8080.
+DD_MAX_PAYLOAD: maximum image bytes per UDP packet, 1400.
+DD_FLAG_FRAME_START: packet is the first part of a frame.
+DD_FLAG_FRAME_END: packet is the final part of a frame.
+DD_FLAG_LOOP_START: packet begins a new playback loop.
+
+dd_packet_header fields (40 bytes total; multi-byte fields use network order):
+magic: Confirms the packet belongs to this project.
+version: Allows future formats to be distinguished.
+stream_type: Identifies the payload as IVUS B-mode pixels.
+flags: Start/end/loop markers.
+frame_id: Monotonically increasing transmitted frame number.
+timestamp_us: Sender wall-clock time in microseconds.
+packet_index: Zero-based position of this packet in its frame.
+packet_count: Total packets required for the frame.
+payload_bytes: Valid image bytes in this packet.
+width, height: Image dimensions in pixels.
+reserved: Held at zero for future use.
+area_mm2_milli: Lumen area in thousandths of one square millimeter.
+frame_crc32: CRC-32 of the entire grayscale frame.
+
+tools/export_ivus_demo.py
+-------------------------
+decode_label(value): Converts HDF5 byte labels into Python strings.
+pixel_area_mm2(coordinates, np): Uses median distance between adjacent stored
+  Cartesian coordinates. Pixel area is dx*dy, converted from m^2 to mm^2 by
+  multiplying by 1,000,000.
+export(...): Reads the supplied B-mode image and lumen mask using the team's
+  ivus.py metadata checks, calculates lumen area, calculates CRC-32, and writes
+  a DDF file.
+main(): Defines command-line arguments and calls export().
+
+Important exporter variables:
+images: HDF5 array of supplied 8-bit B-mode frames.
+segmentations: HDF5 array of supplied masks.
+lumen_index: Position of the "lumen" label in the segmentation array.
+area_per_pixel: Physical area represented by one Cartesian image pixel.
+area_milli: Lumen area multiplied by 1000 and rounded to an integer.
+rate: Dataset frame rate represented as an exact numerator/denominator pair.
+crc: CRC-32 used to detect corruption after storage or transport.
+
+DDF FILE FORMAT
+---------------
+The 32-byte file header contains:
+magic="DDF1", version, frame_count, width, height, fps_num, fps_den, flags.
+
+Each frame then contains a 16-byte frame header:
+frame_index, area_mm2_milli, pixel_bytes, crc32
+followed immediately by width*height unsigned 8-bit grayscale pixels.
+
+red_pitaya/dd_udp_sender.c
+--------------------------
+crc32_bytes(): Computes the same standard CRC-32 used by Python zlib.
+host_to_network_u64(): Converts the 64-bit timestamp to network byte order.
+realtime_microseconds(): Produces a packet timestamp.
+sleep_until(): Uses an absolute monotonic deadline to preserve playback rate
+  and avoid accumulating one sleep error per frame.
+read_exact(): Rejects a truncated file read.
+send_frame(): Divides one image into 1400-byte pieces, creates a DDSP header,
+  and transmits each packet with sendto().
+main(): Validates arguments and DDF metadata, checks each stored frame CRC,
+  opens a UDP socket, and plays once or loops continuously.
+
+Important sender variables:
+expected_bytes: width*height bytes expected in every grayscale frame.
+transmitted_id: Network frame ID; continues increasing across playback loops.
+deadline: Absolute time at which the next frame should finish waiting.
+loops: Number of acquisition repetitions; 0 means continue until Ctrl+C.
+destination: Pi IPv4 address and UDP port.
+
+tools/dd_udp_receiver_test.py
+------------------------------
+receive(): Binds UDP port 8080, validates headers, accepts packets in any order,
+  reconstructs one frame, confirms CRC-32, and returns the image and metadata.
+main(): Saves the verified frame as received_frame.pgm and prints the result.
+
+This receiver should be used before the GUI because it separates Ethernet and
+packet-format errors from display-library or fullscreen problems.
+
+gui/gui.c
+---------
+crc32_bytes(): Verifies the completed frame against the sender's CRC.
+monotonic_milliseconds(): Measures connection activity without clock jumps.
+abandon_assembly(): Counts missing packets when an incomplete frame is replaced.
+begin_assembly(): Validates dimensions/counts and allocates frame state.
+publish_frame(): CRC-checks a completed frame and safely shares it with the UI.
+receiver_thread(): Binds UDP 8080 and continuously validates/reassembles DDSP.
+grayscale_to_rgb(): Expands one grayscale value into equal R, G, and B bytes.
+main(): Initializes SDL/Nuklear, starts the receiver thread, refreshes the live
+  texture and statistics, and shuts down cleanly.
+
+Important GUI state:
+receiver_state.mutex: Prevents receiver and display threads from changing shared
+  frame data simultaneously.
+published_pixels: Latest complete and CRC-valid frame.
+published_generation: Increments whenever a new valid frame is published.
+completed_frames: Number of frames that passed CRC.
+damaged_frames: Incomplete or CRC-failing frames.
+missing_packets: Packets absent when a newer frame arrived.
+duplicate_packets: Repeated packet indexes in one frame.
+malformed_packets: Packets rejected for invalid metadata or length.
+last_packet_ms: Most recent valid packet activity, used for status timeout.
+assembly.packet_seen: One byte per expected packet for reordering/duplicate tests.
+
+MEASUREMENT MODEL USED IN THIS DEMO
+-----------------------------------
+For a binary lumen mask M(x,y), the displayed cross-sectional area is
+
+  A = N_lumen * delta_x * delta_y
+
+where N_lumen is the number of true mask pixels and delta_x and delta_y are
+median adjacent coordinate spacings. The result is converted to mm^2.
+
+No velocity or cardiac output is calculated because no Doppler measurement is
+present. If validated mean velocity v is later available, instantaneous
+volumetric flow would be Q = A*v after consistent unit conversion. Calling
+that value cardiac output would additionally require validated cardiac-cycle
+integration/averaging and an appropriate anatomical measurement location.
+
+SUPPORTED DEMONSTRATION STATEMENT
+---------------------------------
+"A recorded porcine IVUS dataset was packetized by Linux on the Red Pitaya ARM,
+transported over the physical UDP/Ethernet link, CRC-checked and reassembled by
+the Raspberry Pi, and displayed with dataset-derived lumen area. The FPGA DMA
+and Doppler measurement paths remain future integration work."

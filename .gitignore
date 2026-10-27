@@ -1,0 +1,45 @@
+# Medical datasets and prepared demo streams
+*.hdf5
+*.h5
+*.ddf
+*.pgm
+
+# C build products
+*.o
+gui_stream
+dd_udp_sender
+
+# FPGA build products
+*.bit
+*.bin
+*.bit.bin
+
+# Python environments and cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Archives
+*.tar.gz
+*.zip
+
+# Local editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Vivado generated directories
+*.cache/
+*.hw/
+*.runs/
+*.sim/
+*.gen/
+*.ip_user_files/
+.Xil/
+
+# Vivado logs
+*.jou
+*.log
+*.str
+*.wdb
