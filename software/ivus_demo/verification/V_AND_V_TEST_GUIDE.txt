@@ -1,0 +1,249 @@
+DOPPLER DYNAMICS — POSTER VERIFICATION TEST GUIDE
+=================================================
+
+PURPOSE
+-------
+This guide produces the three selected symposium-poster figures:
+
+1. Measured versus commanded analog frequency
+2. Valid versus damaged IVUS frames during a five-minute stream
+3. Measured Ethernet throughput versus the theoretical packet rate
+
+The analog test verifies the Red Pitaya acquisition path. The two network
+figures verify the recorded-IVUS packetization, physical Ethernet transport,
+frame reconstruction, and CRC integrity path. They do not validate live IVUS,
+live Doppler, FPGA DMA, or clinical cardiac-output accuracy.
+
+
+FILES
+-----
+tools/dd_udp_vv_logger.py
+  Runs on the Raspberry Pi instead of the GUI during the five-minute test.
+  It reconstructs DDSP frames, checks CRC32, counts valid/damaged frames and
+  packet errors, and records one throughput row per second.
+
+tools/plot_vv_results.py
+  Runs on the Windows workstation after the tests. It creates three poster-
+  ready PNG files and a text file containing copy-ready metrics.
+
+verification/analog_frequency_template.csv
+  Manual data sheet for three trials at each function-generator frequency.
+
+
+IMPORTANT CONSTANTS
+-------------------
+DDSP header:                 40 bytes
+Maximum image payload:       1400 bytes
+IVUS frame dimensions:       986 x 985 pixels
+Image bytes per frame:       971210 bytes
+Packets per frame:           694
+Playback rate:               3.333333 frames/s
+Theoretical image rate:      approximately 25.90 Mb/s
+Estimated on-wire rate:      approximately 27.86 Mb/s
+
+The MATLAB model must use DDSP_HEADER_BYTES = 40, not 32. The 70 Mb/s IVUS
+rate, 20 Mb/s Doppler rate, and 5 us Pi processing time in dd_network_init.m
+are simulation test assumptions and must not be presented as measurements.
+
+
+TEST 1 — ANALOG FREQUENCY VERIFICATION
+--------------------------------------
+Equipment:
+  - Agilent 33220A function generator
+  - Red Pitaya STEMlab 125-14
+  - Correct BNC-to-SMA/coaxial connection to IN1
+  - Laptop using the Red Pitaya oscilloscope application
+
+Generator settings:
+  - Sine waveform
+  - 0.2 Vpp
+  - 0 V offset
+  - High-Z load setting
+  - Output initially OFF
+
+Procedure:
+  1. Connect the generator output to Red Pitaya IN1.
+  2. Open the Red Pitaya oscilloscope application.
+  3. Enable IN1 and add frequency and peak-to-peak measurements.
+  4. Use the frequencies in analog_frequency_template.csv.
+  5. At each frequency, wait for a stable measurement and record three trials.
+  6. Record the displayed frequency exactly; do not round prematurely.
+  7. Record measured Vpp as supporting information.
+  8. Turn the generator output OFF before changing cabling.
+
+The 9.3 MHz rows are placeholders. Replace them with the exact frequency
+printed on the Parks probe or its matched Doppler instrument if different.
+
+Save the completed file as:
+  analog_frequency_results.csv
+
+Recommended test evidence:
+  - Photograph of the physical connection
+  - Screenshot at the highest test frequency
+  - Generator model and serial number
+  - Red Pitaya model and input-range setting
+  - Date, operator, cable, amplitude, offset, and load setting
+
+
+TESTS 2 AND 3 — FIVE-MINUTE NETWORK TEST
+-----------------------------------------
+Network addresses:
+  Windows workstation: 192.168.10.1
+  Raspberry Pi:         192.168.10.2
+  Red Pitaya:           192.168.10.3
+  DDSP IVUS port:       UDP 8080
+
+A. Confirm the Red Pitaya route:
+
+  ip addr del 192.168.10.2/24 dev eth0 2>/dev/null
+  ip addr replace 192.168.10.3/24 dev eth0
+  ip route get 192.168.10.2
+
+The route must say:
+  192.168.10.2 dev eth0 src 192.168.10.3
+
+B. Stop the Pi GUI so it does not occupy UDP port 8080:
+
+  su -
+  systemctl stop gui.service
+  pkill -f gui_stream 2>/dev/null
+  exit
+
+C. On the Pi, create the results directory and start the logger:
+
+  mkdir -p /home/micaela/vv_results
+  python3 /home/micaela/demo_package/dd_ivus_demo/tools/dd_udp_vv_logger.py \
+      --duration 300 \
+      --fps 3.333333333333333 \
+      --output-dir /home/micaela/vv_results
+
+The program will print that it is listening. Its timer begins only when the
+first valid DDSP IVUS packet arrives.
+
+D. On the Red Pitaya, start continuous transmission:
+
+  cd /root/dd_ivus_demo/red_pitaya
+  ./dd_udp_sender ../15_10_50_19_demo.ddf 192.168.10.2 8080 0
+
+E. Let the test finish without moving cables, launching the GUI, or placing
+other traffic on the private switch. The logger prints results once per second
+and stops after five measured minutes.
+
+F. Press Ctrl+C in the Red Pitaya sender terminal after the Pi logger finishes.
+
+G. On the Pi, inspect the outputs:
+
+  ls -lh /home/micaela/vv_results
+  cat /home/micaela/vv_results/network_summary.json
+
+Expected files:
+  network_timeseries.csv
+  network_summary.json
+
+The timed cutoff may occur during one final frame. That trailing partial frame
+is deliberately ignored rather than counted as network damage.
+
+
+COPY THE TEXT RESULTS TO WINDOWS
+--------------------------------
+If normal SCP works, copy both files with SCP. If the Pi still lacks an SFTP or
+SCP server component, use SSH and PowerShell text output:
+
+  New-Item -ItemType Directory -Force `
+      "$HOME\Downloads\IVUS-Doppler\vv_results" | Out-Null
+
+  ssh micaela@192.168.10.2 `
+      "cat /home/micaela/vv_results/network_timeseries.csv" |
+      Set-Content -Encoding UTF8 `
+      "$HOME\Downloads\IVUS-Doppler\vv_results\network_timeseries.csv"
+
+  ssh micaela@192.168.10.2 `
+      "cat /home/micaela/vv_results/network_summary.json" |
+      Set-Content -Encoding UTF8 `
+      "$HOME\Downloads\IVUS-Doppler\vv_results\network_summary.json"
+
+Copy analog_frequency_results.csv into the same vv_results directory.
+
+
+CREATE THE THREE POSTER FIGURES ON WINDOWS
+------------------------------------------
+From PowerShell:
+
+  Set-Location "$HOME\Downloads\IVUS-Doppler"
+
+Use the existing project virtual environment if it contains matplotlib, or
+install matplotlib into it:
+
+  & ".\.venv\Scripts\python.exe" -m pip install matplotlib
+
+Run the plotter. Adjust the tool path if the repository uses another folder:
+
+  & ".\.venv\Scripts\python.exe" `
+      ".\software\ivus_demo\tools\plot_vv_results.py" `
+      --analog ".\vv_results\analog_frequency_results.csv" `
+      --network-csv ".\vv_results\network_timeseries.csv" `
+      --summary ".\vv_results\network_summary.json" `
+      --output-dir ".\vv_results\poster_figures"
+
+Expected outputs:
+  01_analog_frequency_verification.png
+  02_frame_integrity.png
+  03_throughput_validation.png
+  poster_metrics.txt
+
+
+POSTER CAPTIONS
+---------------
+Analog figure:
+  Red Pitaya analog-input verification using controlled sinusoidal inputs.
+  Mean measured frequency across three trials was compared with the Agilent
+  33220A commanded frequency; error bars represent one sample standard
+  deviation.
+
+Frame-integrity figure:
+  Five-minute end-to-end IVUS transport test. The Red Pitaya packetized
+  prerecorded 986 x 985 grayscale frames into 694 DDSP/UDP packets per frame;
+  the Raspberry Pi reconstructed each frame and verified CRC32 before counting
+  it as valid.
+
+Throughput figure:
+  Raspberry Pi receive throughput during the five-minute IVUS stream compared
+  with the 27.86 Mb/s theoretical on-wire rate derived from image data and
+  DDSP/UDP/IPv4/Ethernet overhead.
+
+
+REPORTING RULES
+---------------
+1. Do not call simulated values measured results.
+2. Do not claim zero packet loss unless the five-minute results show it.
+3. Report the number of trials and test duration.
+4. Preserve the raw CSV and JSON files; do not keep only screenshots.
+5. Do not claim live IVUS, live Doppler, DMA, or clinical validation.
+6. Record any excluded trial and the reason for excluding it.
+7. Keep the original raw results unchanged; create corrected copies separately.
+
+
+FUNCTION AND VARIABLE REFERENCE
+-------------------------------
+dd_udp_vv_logger.py:
+  HEADER: Binary definition of the 40-byte DDSP header.
+  WIRE_BYTES_OUTSIDE_UDP_PAYLOAD: Standard UDP/IP/Ethernet byte-times added to
+    estimate physical-link throughput.
+  crc32_bytes(): Calculates frame CRC32.
+  new_assembly(): Creates storage for one frame's packet pieces.
+  write_outputs(): Saves the per-second CSV and final JSON summary.
+  counters: Cumulative datagram, frame, CRC, missing, duplicate, and malformed
+    packet measurements.
+  interval: One-second byte and datagram counters used for the throughput plot.
+  trailing_partial_ignored: Records whether the timer stopped in the middle of
+    a frame; this artificial cutoff is not treated as network failure.
+
+plot_vv_results.py:
+  load_analog(): Groups completed trials by commanded frequency.
+  load_network_csv(): Reads per-second throughput values.
+  analog_figure(): Creates measured-versus-commanded frequency and percent-error
+    panels using logarithmic frequency axes.
+  integrity_figure(): Creates valid-versus-damaged frame bars.
+  throughput_figure(): Creates measured throughput, theoretical rate, and mean
+    throughput lines.
+  write_metrics(): Produces copy-ready numerical results for the poster/report.
