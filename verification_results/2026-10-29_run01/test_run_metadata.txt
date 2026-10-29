@@ -1,0 +1,145 @@
+DOPPLER DYNAMICS VERIFICATION TEST RECORD
+=========================================
+
+Test IDs: ANALOG-FREQ-01 and IVUS-NET-01
+Test date: 2026-10-29
+Operator: Micaela Rivas
+Location: UTSA Makerspace
+Tested Git commit: 17e0d3e
+
+TEST OBJECTIVE
+--------------
+Verify that the Red Pitaya analog input can acquire frequencies through the
+expected 9.3 MHz Doppler carrier range. Verify end-to-end transmission of a
+prerecorded IVUS dataset from the Red Pitaya ARM processor to the Raspberry Pi
+with measurable throughput, packet-integrity checking, and CRC validation.
+
+HARDWARE
+--------
+Red Pitaya model: STEMlab 125-14, Zynq-7010
+Red Pitaya identifier: rp-f0ef04; Ethernet MAC 00:26:32:f0:ef:04
+Red Pitaya OS release: Release-2024.3
+Raspberry Pi model: Raspberry Pi 4 Model B Revision 1.4
+Raspberry Pi OS release: DietPi / Debian 13 (Trixie)
+Function generator model: Agilent 33220A, 20 MHz
+Function generator serial: Not recorded
+Ethernet switch model: Not recorded
+Analog cable: 50-ohm BNC-to-BNC coaxial cable
+Network cabling: Ethernet patch cables through an unmanaged switch
+Red Pitaya input-range jumper: Not recorded; verify before final report
+
+NETWORK CONFIGURATION
+---------------------
+Windows IPv4 address: 192.168.10.1/24
+Raspberry Pi IPv4 address: 192.168.10.2/24
+Red Pitaya IPv4 address: 192.168.10.3/24
+UDP destination port: 8080
+Physical topology: Red Pitaya, Raspberry Pi, and Windows computer connected
+through the same Ethernet switch
+Source: Red Pitaya ARM UDP sender
+Destination: Raspberry Pi verification logger
+
+ANALOG TEST SETTINGS
+--------------------
+Waveform: Sine
+Commanded amplitude: 0.200 Vpp
+DC offset: 0 V
+Generator load setting: High Z
+Frequencies tested: 1 kHz, 10 kHz, 100 kHz, 1 MHz, 5 MHz, and 9.3 MHz
+Trials per frequency: 3
+Total analog trials: 18
+Measurement method: Red Pitaya web oscilloscope automatic frequency and
+peak-to-peak measurements; results recorded from three captures per frequency
+
+NETWORK TEST SETTINGS
+---------------------
+Dataset source: NVIDIA Open-H-RF, mosaic-nuevosono/data/15_10_50_19.hdf5
+DDF filename: 15_10_50_19_demo.ddf
+DDF SHA256: f4fd758f6b27530a8c023e2d5ed173e0838cd5f51f2737105ba82bdf4b9a2ecc
+Frame dimensions: 986 x 985 pixels
+Frame data size: 971,210 bytes
+Playback rate: 3.333333 frames/s
+Maximum image payload per packet: 1,400 bytes
+Packets per frame: 694
+Configured duration: 300 seconds
+Completed frames evaluated: 1,000
+UDP datagrams evaluated: 694,001
+
+PROPOSED ACCEPTANCE CRITERIA
+----------------------------
+Maximum mean frequency error: <= 1.0%
+Maximum analog amplitude error: <= 5.0%
+Minimum frame-completion rate: >= 99.9%
+Maximum CRC failures: 0
+Maximum malformed packets: 0
+Allowed mean-throughput deviation from theoretical: <= 5.0%
+Approval status: Proposed criteria; final team/faculty approval pending
+
+TEST DEVIATIONS OR ANOMALIES
+----------------------------
+The Red Pitaya static IPv4 address was assigned manually for the test session.
+The logger began its timer with the first valid DDSP IVUS packet.
+A final partial frame existed when the 300-second timer expired and was
+correctly excluded rather than classified as a damaged frame.
+The one-second throughput samples alternate because a 3.333333 frame/s source
+places either three or four complete frames into individual one-second bins.
+This test used prerecorded IVUS dataset playback and does not claim live IVUS
+probe acquisition.
+
+RAW EVIDENCE FILES
+------------------
+Analog CSV:
+verification_results/2026-10-29_run01/analog_frequency_results.csv
+
+Network CSV:
+verification_results/2026-10-29_run01/network_timeseries.csv
+
+Network JSON:
+verification_results/2026-10-29_run01/network_summary.json
+
+Poster figures:
+verification_results/2026-10-29_run01/poster_figures/
+
+Scope screenshots:
+Retained separately as raw laboratory evidence
+
+RESULT SUMMARY
+--------------
+Analog frequencies tested: 6
+Maximum mean frequency error: 0.440860%
+Mean frequency error: 0.108810%
+9.3 MHz mean measured frequency: 9.259 MHz
+9.3 MHz frequency error: 0.440860%
+9.3 MHz mean measured amplitude: 0.191833 Vpp
+9.3 MHz amplitude error: approximately 4.08%
+
+Valid frames: 1,000
+Damaged frames: 0
+Frame completion: 100.000%
+Missing packets: 0
+Duplicate packets: 0
+Malformed packets: 0
+CRC failures: 0
+
+Mean estimated Ethernet wire rate: 27.860680 Mb/s
+Theoretical estimated Ethernet wire rate: 27.860637 Mb/s
+Mean throughput deviation: approximately 0.000154%
+One-second wire-rate standard deviation: 2.169134 Mb/s
+
+CONCLUSION
+----------
+The Red Pitaya successfully acquired all six commanded analog frequencies
+through 9.3 MHz within the proposed frequency and amplitude limits. During the
+five-minute prerecorded IVUS streaming test, the Red Pitaya-to-Raspberry Pi
+UDP path delivered 1,000 CRC-valid frames with no detected missing packets,
+malformed packets, duplicate packets, damaged frames, or CRC failures.
+Measured mean throughput matched the calculated theoretical wire rate.
+
+These results verify the tested analog acquisition and prerecorded IVUS
+network-transport subsystems. They do not yet verify live IVUS acquisition,
+live Doppler demodulation, flow velocity, or cardiac-output calculation.
+
+SIGN-OFF
+--------
+Performed by/date: Micaela Rivas, 2026-10-29
+Reviewed by/date: Pending

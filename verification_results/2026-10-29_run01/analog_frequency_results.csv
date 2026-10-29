@@ -1,0 +1,19 @@
+trial,command_frequency_hz,measured_frequency_hz,command_vpp,measured_vpp,notes
+1,1000,999.62,0.2,0.2,lean stable sine wave; mean offset 0.8 mV
+2,1000,1000.2,0.2,0.2,"Freq calculated from measured period of 999.8 us, clean and stable waverform"
+3,1000,999.62,0.2,0.1998,"Clean and stable waveform, mean offset 0.8mV"
+1,10000,10010,0.2,0.1997,"Clean and stable, measured pd 99.9 us"
+2,10000,10000,0.2,0.1996,measured pd  100us
+3,10000,9980,0.2,0.1992,measured pd 100.2 us
+1,100000,100240,0.2,0.1989,measured pd 10 us
+2,100000,100000,0.2,0.1987,measured pd 10 us
+3,100000,100240,0.2,0.1993,pd 10 us
+1,1000000,1000000,0.2,0.1983,1 us period
+2,1000000,1000000,0.2,0.1981,1 us period
+3,1000000,1000000,0.2,0.1986,1 us pd
+1,5000000,5000000,0.2,0.1969,200 ns pd
+2,5000000,5000000,0.2,0.1965,200 ns pd
+3,5000000,5000000,0.2,0.1969,200ns
+1,9300000,9259000,0.2,0.192,"Carrier acquired successfully, visible high freq roll off"
+2,9300000,9259000,0.2,0.192,same as last 
+3,9300000,9259000,0.2,0.1915,same as last 
