@@ -1,0 +1,16 @@
+DOPPLER DYNAMICS V&V POSTER METRICS
+====================================
+
+Analog frequencies tested: 6
+Maximum mean frequency error: 0.440860%
+Mean frequency error: 0.108810%
+
+Valid frames: 1000
+Damaged frames: 0
+Frame completion: 100.000000%
+Missing packets: 0
+CRC failures: 0
+
+Measured mean estimated wire rate: 27.860680 Mb/s
+Measured wire-rate standard deviation: 2.169134 Mb/s
+Theoretical estimated wire rate: 27.860637 Mb/s

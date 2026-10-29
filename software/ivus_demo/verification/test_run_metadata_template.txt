@@ -1,0 +1,92 @@
+DOPPLER DYNAMICS VERIFICATION TEST RECORD
+=========================================
+
+Test ID:
+Test date and time:
+Operator:
+Location:
+Git commit hash:
+
+TEST OBJECTIVE
+--------------
+
+
+HARDWARE
+--------
+Red Pitaya model:
+Red Pitaya serial/identifier:
+Red Pitaya OS release:
+Raspberry Pi model:
+Raspberry Pi OS release:
+Function generator model:
+Function generator serial/identifier:
+Ethernet switch model:
+Cable/adapter description:
+Red Pitaya input-range jumper setting:
+
+NETWORK CONFIGURATION
+---------------------
+Windows IPv4 address:
+Raspberry Pi IPv4 address:
+Red Pitaya IPv4 address:
+UDP port:
+Physical topology:
+
+ANALOG TEST SETTINGS
+--------------------
+Waveform:
+Commanded amplitude:
+DC offset:
+Generator load setting:
+Frequencies tested:
+Trials per frequency:
+Oscilloscope measurement method:
+
+NETWORK TEST SETTINGS
+---------------------
+Dataset/acquisition identifier:
+DDF SHA256:
+Frame dimensions:
+Playback rate:
+Payload bytes per packet:
+Packets per frame:
+Configured test duration:
+
+PROPOSED ACCEPTANCE CRITERIA
+----------------------------
+Maximum frequency error:
+Minimum frame-completion rate:
+Maximum CRC failures:
+Allowed throughput deviation:
+Approved by/date:
+
+TEST DEVIATIONS OR ANOMALIES
+----------------------------
+
+
+RAW EVIDENCE FILES
+------------------
+Analog CSV:
+Network CSV:
+Network JSON:
+Photographs/screenshots:
+Terminal logs:
+
+RESULT SUMMARY
+--------------
+Maximum mean frequency error:
+Frame completion rate:
+Damaged frames:
+Missing packets:
+CRC failures:
+Mean estimated wire throughput:
+Theoretical estimated wire throughput:
+
+CONCLUSION
+----------
+
+
+SIGN-OFF
+--------
+Performed by/date:
+Reviewed by/date:
