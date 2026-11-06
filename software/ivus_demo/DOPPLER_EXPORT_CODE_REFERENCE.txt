@@ -1,0 +1,239 @@
+DOPPLER DYNAMICS ECHOXFLOW EXPORTER — CODE REFERENCE
+====================================================
+
+SOURCE FILE
+-----------
+tools/export_echoxflow_doppler.py
+
+PURPOSE
+-------
+The exporter reads one small EchoXFlow examination and converts the selected
+LVOT Doppler and diameter recordings into a compact demonstration package. It
+also independently calculates velocity-time integral (VTI), stroke volume
+(SV), and cardiac output (CO) from the source annotations.
+
+The script does not perform live ultrasound acquisition. It processes a
+prerecorded retrospective clinical Doppler examination for proof-of-concept
+calculation, Ethernet-streaming, and GUI validation.
+
+REQUIRED INPUT RECORDINGS
+-------------------------
+exam_40a7fcbd73d4ae1b
+
+1. recording_7bbc7f52a98c20a0.zarr
+   - Pulsed-wave LVOT Doppler spectrum
+   - Synchronized ECG
+   - Heart-rate metadata
+   - Three manual LVOT velocity-envelope traces
+
+2. recording_68dea4212b32ea6f.zarr
+   - Two-point LVOT diameter caliper measurement
+
+OUTPUT FILES
+------------
+echoxflow_lvot_demo.npz
+    Compact compressed arrays for the Red Pitaya sender and Raspberry Pi GUI.
+
+echoxflow_lvot_summary.json
+    Human-readable calculation results, source identifiers, equations, and
+    beat-level values.
+
+echoxflow_lvot_preview.png
+    Validation image containing the Doppler spectrum, manual LVOT traces,
+    synchronized ECG, and calculated hemodynamic values.
+
+echoxflow_lvot_demo.ddp
+    Little-endian compact binary playback file for dd_doppler_udp_sender on
+    the Red Pitaya ARM processor. This is the file transferred to the board.
+
+MATHEMATICAL MODEL
+------------------
+1. LVOT cross-sectional area:
+
+       A_LVOT = pi * (d_LVOT / 2)^2
+
+   d_LVOT is measured in centimetres. A_LVOT is square centimetres.
+
+2. Velocity-time integral for one beat:
+
+       VTI = integral |v(t) - v_baseline| dt
+
+   Velocity is metres per second in the source annotation. The integral is
+   converted to centimetres per beat.
+
+3. Stroke volume:
+
+       SV = A_LVOT * VTI
+
+   cm^2 multiplied by cm produces cm^3, equivalent to millilitres.
+
+4. Cardiac output:
+
+       CO = SV * HR / 1000
+
+   SV is millilitres per beat and HR is beats per minute. Dividing by 1000
+   converts millilitres per minute to litres per minute.
+
+FUNCTION REFERENCE
+------------------
+parse_args()
+    Reads --exam-dir, --output-dir, and optional recording identifiers from
+    the command line.
+
+open_recording(exam_dir, recording_id)
+    Builds the recording path, confirms that it exists, and opens it as a
+    read-only Zarr group.
+
+measurement_annotations(group)
+    Reads the recording manifest and returns only entries categorized as
+    measurement annotations.
+
+find_measurements(group, measurement_kind)
+    Searches the manifest for a requested measurement_kind and loads all
+    matching annotation arrays. Examples are dimension_lvot_diam and
+    aortic_lvot_trace_manual.
+
+calculate_lvot_diameter_cm(diameter_group)
+    Loads the two LVOT caliper points, calculates their Euclidean distance in
+    metres, and converts the distance to centimetres.
+
+integrate_vti_cm(trace_points)
+    Separates time and velocity columns, estimates the zero-velocity baseline
+    from the trace endpoints, integrates the absolute corrected envelope, and
+    returns VTI, peak velocity, duration, and timing information.
+
+velocity_axis_mps(spectral_bins, nyquist_mps, baseline_fraction)
+    Constructs a velocity coordinate for each Doppler spectral bin using the
+    stored Nyquist velocity and display-baseline position.
+
+create_preview(...)
+    Produces the PNG validation figure. It plots the Doppler spectral matrix,
+    overlays the manual LVOT traces, plots ECG, and prints the principal
+    cardiac-output values.
+
+main()
+    Coordinates the complete workflow: open recordings, load data, calculate
+    hemodynamic values, write NPZ and JSON files, create the preview, and print
+    a terminal summary.
+
+write_ddp_file(...)
+    Converts every Doppler spectral row into a timestamped DDP1 sample. The
+    beat-level VTI, stroke volume, and cardiac-output fields update when each
+    manually traced beat finishes. Each stored spectral row includes a CRC32.
+
+IMPORTANT VARIABLES
+-------------------
+exam_dir
+    Folder containing the examination's .zarr recording directories.
+
+output_dir
+    Destination folder for the exported demonstration package.
+
+spectrum
+    Two-dimensional pulsed-wave Doppler intensity matrix. Rows are time
+    samples and columns are spectral-velocity bins.
+
+doppler_time_s
+    Timestamp for every Doppler spectral row, in seconds.
+
+ecg / ecg_time_s
+    Synchronized electrocardiogram samples and timestamps.
+
+traces
+    List of manually annotated LVOT velocity-envelope polylines. Each row is
+    [time_seconds, velocity_metres_per_second].
+
+heart_rate_bpm
+    Heart rate recorded in the Doppler recording metadata.
+
+diameter_cm
+    LVOT diameter calculated from the physical caliper coordinates.
+
+area_cm2
+    LVOT cross-sectional area calculated from diameter_cm.
+
+beat_results
+    List containing VTI, stroke volume, and cardiac output for each traced
+    heartbeat.
+
+mean_vti_cm / mean_sv_ml / mean_co_lpm
+    Mean VTI, stroke volume, and cardiac output across the three annotated
+    beats.
+
+nyquist_mps
+    Median stored Nyquist-velocity calibration in metres per second.
+
+baseline_fraction
+    Vertical location of the zero-velocity line as a fraction of the Doppler
+    spectral display height.
+
+VALIDATION EXPECTATIONS FOR THE SELECTED EXAMINATION
+----------------------------------------------------
+Approximate expected values are:
+
+LVOT diameter:          1.950 cm
+Heart rate:            70.0 bpm
+Mean VTI:              19.05 cm
+Mean stroke volume:    56.88 mL
+Mean cardiac output:    3.98 L/min
+
+Small last-digit differences can occur because of NumPy version and floating-
+point rounding.
+
+SCIENTIFIC DISCLOSURE
+---------------------
+The EchoXFlow Doppler examination and the NuevoSono/Open-H-RF IVUS record are
+not from the same patient. Their streams may be displayed simultaneously as a
+multimodal system demonstration, but IVUS area must not be combined with this
+Doppler velocity and represented as a patient-specific clinical measurement.
+
+The GUI should display the following disclosure:
+
+"Prerecorded retrospective clinical datasets; IVUS and Doppler sources are
+not patient-matched. Demonstration is not for clinical use."
+
+DEPENDENCIES
+------------
+Python 3
+zarr version 2.x
+NumPy
+Matplotlib
+
+NETWORK STREAM FILES
+--------------------
+red_pitaya/dd_doppler_udp_sender.c
+    Runs on the Red Pitaya ARM processor. It validates the DDP1 file, paces
+    samples with their original timing, constructs DDSP stream-type-2 UDP
+    packets, and repeatedly sends them to port 8081.
+
+tools/dd_doppler_udp_receiver_test.py
+    Runs on the Raspberry Pi or development computer. It validates packet
+    structure, sequence continuity, CRC32, sample rate, loop markers, and the
+    transmitted HR/VTI/SV/CO values.
+
+protocol.h
+    Shared packet definitions. IVUS remains stream type 1 on UDP 8080.
+    Pulsed-wave Doppler uses stream type 2 on UDP 8081.
+
+DOPPLER UDP PAYLOAD
+-------------------
+Every UDP datagram contains the existing 40-byte DDSP header followed by:
+
+    sample_index                   uint32
+    time_offset_us                 uint32
+    heart_rate_milli_bpm           uint32
+    lvot_diameter_um               uint32
+    vti_milli_cm                   uint32
+    stroke_volume_microliters      uint32
+    cardiac_output_milli_lpm       uint32
+    spectral_intensity[128]        uint8 array
+
+All UDP multi-byte fields use network byte order. Each Doppler datagram carries
+one complete spectral line and therefore does not require fragmentation.
+
+EXAMPLE COMMAND
+---------------
+& $venvPython .\export_echoxflow_doppler.py `
+    --exam-dir "C:\Users\micae\Downloads\EchoXFlow_demo\extracted\exams\exam_40a7fcbd73d4ae1b" `
+    --output-dir "C:\Users\micae\Downloads\EchoXFlow_demo\output"
+
