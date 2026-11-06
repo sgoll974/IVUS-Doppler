@@ -2,12 +2,15 @@
 
 CFLAGS = -std=c99 -O2 -Wall -Wextra -pedantic
 
-all: dd_udp_sender
+all: dd_udp_sender dd_doppler_udp_sender
 
 dd_udp_sender: dd_udp_sender.c ../protocol.h
 	$(CC) $(CFLAGS) -o $@ dd_udp_sender.c
 
+dd_doppler_udp_sender: dd_doppler_udp_sender.c ../protocol.h
+	$(CC) $(CFLAGS) -o $@ dd_doppler_udp_sender.c
+
 clean:
-	rm -f dd_udp_sender
+	rm -f dd_udp_sender dd_doppler_udp_sender
 
 .PHONY: all clean

@@ -1,0 +1,122 @@
+DOPPLER DYNAMICS COMBINED GUI CODE REFERENCE
+============================================
+
+FILES
+-----
+gui/gui_combined.c
+    Full-screen Raspberry Pi application that receives and displays both IVUS
+    and pulsed-wave Doppler DDSP streams.
+
+gui/Makefile.combined
+Builds gui_combined_v3 without replacing the previously validated gui_stream,
+    gui_combined, or gui_combined_v2 executable.
+
+protocol.h
+    Shared definition of the 40-byte DDSP network header and 28-byte Doppler
+    metadata header.
+
+NETWORK INPUTS
+--------------
+UDP 8080, stream type 1
+    IVUS B-mode frames. A frame is split into payloads of no more than 1400
+    bytes. The GUI reassembles every packet and verifies the frame CRC32 before
+    displaying it.
+
+UDP 8081, stream type 2
+    Pulsed-wave Doppler spectral lines. Every datagram carries one complete
+    128-bin spectral line plus the measurement metadata. The GUI verifies the
+    payload CRC32 before adding the line to the scrolling spectrogram.
+
+MAIN DATA STRUCTURES
+--------------------
+ivus_receiver_state
+    Thread-safe IVUS counters and the newest complete, CRC-verified image.
+
+ivus_assembly
+    Temporary frame-reassembly buffer and packet-received bitmap.
+
+doppler_receiver_state
+    Thread-safe Doppler counters, measurement metadata, and circular
+    spectrogram history.
+
+IMPORTANT FUNCTIONS
+-------------------
+crc32_bytes(data, length)
+    Calculates the same CRC32 used by the Red Pitaya senders.
+
+ivus_receiver_thread(argument)
+    Binds UDP 8080, validates DDSP headers, reassembles IVUS packets, verifies
+    each frame CRC, and publishes only complete frames.
+
+doppler_receiver_thread(argument)
+    Binds UDP 8081, validates each Doppler datagram and CRC, records sequence
+    gaps, and appends spectral lines to a circular history buffer.
+
+history_to_rgb(rgb, history, bins)
+    Converts 8-bit spectral intensity into a high-contrast blue/red/yellow
+    display texture and changes the circular buffer into chronological order.
+
+connection_status(listening, connected, last_packet_ms)
+    Returns RECEIVER ERROR, WAITING, or STREAMING. A stream is considered stale
+    when no packet has arrived for 1.5 seconds.
+
+main()
+    Initializes SDL3 and Nuklear, starts both receiver threads, refreshes the
+    IVUS and Doppler textures, independently calculates cardiac output, renders
+    the dashboard, and shuts down cleanly when Escape is pressed.
+
+CARDIAC OUTPUT MODEL
+--------------------
+The Pi independently recalculates the displayed values rather than merely
+displaying the cardiac-output number carried by the packet.
+
+    LVOT area (cm^2) = pi * (LVOT diameter / 2)^2
+    Stroke volume (mL) = LVOT area (cm^2) * VTI (cm)
+    Cardiac output (L/min) = Stroke volume (mL) * Heart rate (beats/min) / 1000
+
+For the selected EchoXFlow exam:
+
+    LVOT diameter = approximately 1.950 cm
+    Heart rate = 70 beats/min
+    Mean VTI = approximately 19.047 cm
+    Mean cardiac output = approximately 3.982 L/min
+
+KEY CONSTANTS
+-------------
+MAX_FRAME_BYTES
+    Maximum accepted IVUS image size, 2048 by 2048 bytes.
+
+DOPPLER_HISTORY_COLUMNS
+    Number of Doppler spectral lines visible in the scrolling display: 512.
+
+DOPPLER_MAX_BINS
+    Maximum spectral bins accepted in one Doppler line: 256. The selected
+    EchoXFlow recording uses 128.
+
+CONNECTION_TIMEOUT_MS
+    Time without packets before a stream changes from STREAMING to WAITING:
+    1500 milliseconds.
+
+LIMITATIONS AND CORRECT DEMONSTRATION LANGUAGE
+----------------------------------------------
+The IVUS and EchoXFlow Doppler recordings are retrospective datasets from
+different sources and are not patient-matched. The IVUS lumen area is therefore
+displayed as an independent imaging measurement and is not mixed into the
+EchoXFlow cardiac-output calculation.
+
+Describe the implementation as real-time network playback and processing of
+retrospective clinical data. Do not describe it as live patient acquisition or
+as a clinically validated cardiac-output device.
+
+BUILD COMMAND ON THE RASPBERRY PI
+---------------------------------
+cd ~/ivus_demo/gui_original
+make -f Makefile.combined clean
+make -f Makefile.combined
+
+RUN COMMAND
+-----------
+cd ~/ivus_demo/gui_original
+./gui_combined_v3
+
+Press Escape to close the combined GUI.
